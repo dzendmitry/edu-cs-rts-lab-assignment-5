@@ -23,7 +23,7 @@ run-$(1): $(1)
 	@echo -e \\nRunning $(1)...\\n
 	@sudo ./$(1)
 	@echo -e \\nDone running $(1)\\n
-.PHONY: run-$(1)
+.PHONY: run-$(1) clean-$(1)
 endef
 
 $(foreach target,$(wildcard lab*.c),$(eval $(call target_template,$(target:.c=))))
