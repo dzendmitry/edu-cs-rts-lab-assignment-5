@@ -2,16 +2,14 @@
 #include <sys/mman.h>
 #include <native/task.h>
 #include <rtdk.h>
-#include <native/sem.h>
 
+volatile long int shared_resource = 0;
+
+#define ITERATIONS 100000
 #define TASKS 10
-#define DELAY 2 // SECONDS
-
-RT_SEM sem;
+#define DELAY 10000L
 
 void task_body(void *cookie) {
-
-  rt_sem_p(&sem, TM_INFINITE);
 
   RT_TASK *current_task;
   RT_TASK_INFO current_task_info;
@@ -24,7 +22,10 @@ void task_body(void *cookie) {
     current_task_info.cprio
   );
 
-  rt_task_sleep(DELAY * 1000000L); // delay for 1 second
+  for (int i = 0; i < ITERATIONS; i++) {
+    __sync_add_and_fetch(&shared_resource, 1);
+	rt_task_sleep(DELAY);
+  }
 
   rt_printf("Task name: %s is shutting down\n", current_task_info.name);
 
@@ -37,19 +38,14 @@ int main(int argc, char **argv) {
 
   rt_print_auto_init(1);
 
-  if(rt_sem_create(&sem, "Semaphore", 0, S_PRIO) != 0) {
-	exit(-1);
-  }
-  
   mlockall(MCL_CURRENT|MCL_FUTURE);
 
   for(int i = 0; i < TASKS; i++) {
     snprintf(task_name[i], 16, "Lab5Task-%d", i);
-    if (rt_task_create(&task[i], task_name[i], 0, 10 + (i * 2), T_JOINABLE) != 0) {
+    if (rt_task_create(&task[i], task_name[i], 0, 50 - (i*2), T_JOINABLE) != 0) {
       exit(-1);
     }
   }
-
   for (int i = 0; i < TASKS; i++) {
     rt_printf("Starting task %s\n", task_name[i]);
     rt_task_start(&task[i], &task_body, NULL);
@@ -57,13 +53,10 @@ int main(int argc, char **argv) {
 
   rt_printf("All tasks started\n");
 
-  rt_sem_broadcast(&sem);
-  
   for(int i = 0; i < TASKS; i++) {
     rt_task_join(&task[i]);
   }
 
-  rt_printf("All tasks shutted down\n");
-  
-  rt_sem_delete(&sem);
+  rt_printf("All tasks stopped, shared_resource = %d\n", shared_resource);
+
 }

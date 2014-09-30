@@ -2,8 +2,10 @@
 #include <sys/mman.h>
 #include <native/task.h>
 #include <rtdk.h>
+#include <native/mutex.h>
 
-volatile long int shared_resource;
+RT_MUTEX mutex;
+volatile long int shared_resource = 0;
 
 #define ITERATIONS 100000
 #define TASKS 10
@@ -23,9 +25,13 @@ void task_body(void *cookie) {
   );
 
   for (int i = 0; i < ITERATIONS; i++) {
+	rt_mutex_acquire(&mutex, TM_INFINITE);
     long int r = shared_resource;
+	rt_mutex_release(&mutex);
     r = r + 1;
+	rt_mutex_acquire(&mutex, TM_INFINITE);
     shared_resource = r;
+	rt_mutex_release(&mutex);
     rt_task_sleep(DELAY);
   }
 
@@ -39,6 +45,10 @@ int main(int argc, char **argv) {
   RT_TASK task[TASKS];
 
   rt_print_auto_init(1);
+  
+  if(rt_mutex_create(&mutex, "Mutex") != 0) {
+	exit(-1);
+  }
 
   mlockall(MCL_CURRENT|MCL_FUTURE);
 
@@ -58,7 +68,9 @@ int main(int argc, char **argv) {
   for(int i = 0; i < TASKS; i++) {
     rt_task_join(&task[i]);
   }
+  
+  rt_mutex_delete(&mutex);
 
   rt_printf("All tasks stopped, shared_resource = %d\n", shared_resource);
-
+	
 }
