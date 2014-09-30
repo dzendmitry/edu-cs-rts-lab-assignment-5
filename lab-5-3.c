@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 
   for(int i = 0; i < TASKS; i++) {
     snprintf(task_name[i], 16, "Lab5Task-%d", i);
-    if (rt_task_create(&task[i], task_name[i], 0, 50, 0) != 0) {
+    if (rt_task_create(&task[i], task_name[i], 0, 50 - (i*2), T_JOINABLE) != 0) {
       exit(-1);
     }
   }
